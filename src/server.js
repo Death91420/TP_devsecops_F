@@ -92,17 +92,19 @@ const mysql = require("mysql");
 const db = mysql.createConnection({});
 
 // --- EXERCICE 1 : VULNÉRABILITÉ SQLi (TEST FINAL) ---
-app.get("/test-sqli", (req, res) => {
-  const input = req.query.id;
-  
-  // Utilisation d'une chaîne formatée (Template Literal) + concaténation
-  // C'est le "Red Flag" absolu pour Semgrep
-  const sql = `SELECT * FROM users WHERE id = ${input}`;
-  
-  // On simule l'exécution sur un objet qui ressemble à une DB
-  const connection = { query: (s, cb) => cb(null, []) }; 
-  
-  connection.query(sql, (err, rows) => {
-    res.json(rows);
-  });
+// --- EXERCICE 1 : VULNÉRABILITÉ CRITIQUE POUR TEST SAST ---
+app.get("/test-vuln", (req, res) => {
+  const userInput = req.query.cmd;
+
+  // 1. Injection SQL ultra-explicite (catégorie OWASP)
+  const sql = "SELECT * FROM users WHERE name = '" + userInput + "'";
+  require('mysql').createConnection({}).query(sql);
+
+  // 2. Commande OS Injection (Normalement Semgrep déteste ça)
+  require('child_process').exec('ls ' + userInput);
+
+  // 3. Eval est le "diable" pour les scanners
+  eval(userInput);
+
+  res.send("Test terminé");
 });
