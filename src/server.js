@@ -87,7 +87,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Serveur sécurisé lancé sur le port ${PORT}`);
 });
-
+/*
 const mysql = require("mysql");
 const db = mysql.createConnection({});
 
@@ -108,3 +108,4 @@ app.get("/test-vuln", (req, res) => {
 
   res.send("Test terminé");
 });
+*/
