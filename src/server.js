@@ -91,12 +91,18 @@ app.listen(PORT, () => {
 const mysql = require("mysql");
 const db = mysql.createConnection({});
 
+// --- EXERCICE 1 : VULNÉRABILITÉ SQLi (TEST FINAL) ---
 app.get("/test-sqli", (req, res) => {
-  const id = req.query.id;
-
-  // ⚠️ volontairement vulnérable
-  db.query("SELECT * FROM users WHERE id = " + id, (err, result) => {
-    if (err) return res.status(500).send(err);
-    res.json(result);
+  const input = req.query.id;
+  
+  // Utilisation d'une chaîne formatée (Template Literal) + concaténation
+  // C'est le "Red Flag" absolu pour Semgrep
+  const sql = `SELECT * FROM users WHERE id = ${input}`;
+  
+  // On simule l'exécution sur un objet qui ressemble à une DB
+  const connection = { query: (s, cb) => cb(null, []) }; 
+  
+  connection.query(sql, (err, rows) => {
+    res.json(rows);
   });
 });
