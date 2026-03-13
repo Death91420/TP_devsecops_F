@@ -87,3 +87,9 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Serveur sécurisé lancé sur le port ${PORT}`);
 });
+
+app.get('/api/users', (req, res) => {
+  const query = "SELECT * FROM users WHERE id = '" + req.query.id + "'";
+  // Imaginons qu'on exécute cette query : db.execute(query);
+  res.json({ message: "Query exécutée", query });
+});

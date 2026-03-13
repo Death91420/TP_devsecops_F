@@ -13,27 +13,23 @@ jobs:
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
-
       - name: Build de l'image Docker
         run: docker build -t vuln-app:${{ github.sha }} .
-
-      - name: Sauvegarde de l'image (pour les jobs suivants)
+      - name: Sauvegarde de l'image
         run: docker save vuln-app:${{ github.sha }} > image.tar
-
       - name: Stockage de l'artefact
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: image.tar
 
-  # --- ÉTAPE 2 : SAST (Analyse Statique) ---
+  # --- ÉTAPE 2 : SAST (Semgrep) ---
   sast:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
-
       - name: Scan Semgrep
         uses: returntocorp/semgrep-action@v1
         with:
@@ -42,43 +38,71 @@ jobs:
             p/secrets
             p/owasp-top-ten
 
-  # --- ÉTAPE 3 : SCA (Analyse des Dépendances) ---
+  # --- EXERCICE 3 : CodeQL ---
+  codeql:
+    name: 🔍 CodeQL Analysis
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # --- ÉTAPE 3 : SCA ---
   sca:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
-
       - name: Installation de Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Audit des vulnérabilités NPM
         run: |
           cd src
           npm install
-          npm audit --audit-level=high 
-          # --audit-level=high fait échouer le build si vulnérabilités High ou Critical
+          npm audit --audit-level=high
 
-  # --- ÉTAPE 4 : CONTAINER SCAN (Scan de l'image) ---
+  # --- ÉTAPE 4 : CONTAINER SCAN ---
   container_security:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Téléchargement de l'image buildée
+      - name: Téléchargement de l'image
         uses: actions/download-artifact@v4
         with:
           name: docker-image
-
-      - name: Chargement de l'image dans Docker
+      - name: Chargement de l'image
         run: docker load -i image.tar
-
-      - name: Scan Trivy (Vérification OS et Libs)
+      - name: Scan Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'vuln-app:${{ github.sha }}'
           format: 'table'
-          exit-code: '1' # CRITIQUE : Bloque le pipeline si des failles sont trouvées
+          exit-code: '1'
           severity: 'CRITICAL'
+
+  # --- EXERCICE 4 : SECURITY GATE ---
+  security-gate:
+    name: 🚦 Security Gate
+    runs-on: ubuntu-latest
+    # ✅ CORRECTION : Les noms doivent correspondre exactement aux jobs définis plus haut
+    needs: [sast, sca, container_security, codeql] 
+    steps:
+      - name: Check results
+        run: |
+          echo "✅ All security scans completed."
+          echo "Si ce job s'exécute, c'est que les étapes précédentes n'ont pas échoué."
