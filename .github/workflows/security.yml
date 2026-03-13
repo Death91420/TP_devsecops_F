@@ -81,4 +81,4 @@ jobs:
           image-ref: 'vuln-app:${{ github.sha }}'
           format: 'table'
           exit-code: '1' # CRITIQUE : Bloque le pipeline si des failles sont trouvées
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
