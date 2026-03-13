@@ -88,8 +88,15 @@ app.listen(PORT, () => {
   console.log(`✅ Serveur sécurisé lancé sur le port ${PORT}`);
 });
 
+// Exercice 1 : Injection SQL détectable
 app.get('/api/users', (req, res) => {
-  const query = "SELECT * FROM users WHERE id = '" + req.query.id + "'";
-  // Imaginons qu'on exécute cette query : db.execute(query);
-  res.json({ message: "Query exécutée", query });
+  const userId = req.query.id;
+  const query = "SELECT * FROM users WHERE id = '" + userId + "'";
+  
+  // ✅ On simule un appel à une DB (c'est ce que Semgrep surveille)
+  // Même si 'db' n'est pas défini, Semgrep verra l'intention d'exécuter du SQL "tainted"
+  const db = require('some-sql-library'); 
+  db.query(query, (err, result) => {
+      res.json({ data: result });
+  });
 });
