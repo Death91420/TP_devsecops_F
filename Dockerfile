@@ -9,6 +9,7 @@
 # ✅ Image Alpine (plus légère et sécurisée) - Version la plus récente
 # ✅ Utilisation d'une version LTS stable et légère
 FROM node:22-alpine
+RUN apk update && apk upgrade --no-cache
 
 # ✅ Définition de l'environnement en production dès le build
 ENV NODE_ENV=production
