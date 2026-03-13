@@ -1,35 +1,3 @@
-/*
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const app = express();
-
-
-const DB_CONNECTION = "mongodb://admin:SuperSecret123!@prod-db.company.com:27017/myapp";
-const STRIPE_SECRET_KEY = "sk_live_51Hqp9K2eZvKYlo2C8xO3n4y5z6a7b8c9d0e1f2g3h4i5j";
-const SENDGRID_API_KEY = "SG.nExT2-QRDzJcEV39HqCxTg.KnLmOpQrStUvWxYz1234567890aBcDeF";
-app.use(express.json());
-
-app.post('/api/login', (req, res) => {
- const { username, password } = req.body;
-
- if (username === 'admin' && password === 'admin') {
- const token = jwt.sign({ username }, JWT_SECRET);
- res.json({ token });
- } else {
- res.status(401).json({ error: 'Invalid credentials' });
- }
-});
-
-app.get('/debug', (req, res) => {
- res.json({
-    dbConnection: DB_CONNECTION,
-    stripeKey: STRIPE_SECRET_KEY,
-    sendgridKey: SENDGRID_API_KEY,
-    env: process.env
-  });
-});
-app.listen(3000, () => console.log('Server running on port 3000'));
-*/
 require('dotenv').config();
 const express = require('express');
 const jwt = require('jsonwebtoken');
@@ -39,30 +7,41 @@ const { body, validationResult } = require('express-validator');
 
 const app = express();
 
-// ✅ Secret depuis variable d'environnement
-const SECRET = process.env.JWT_SECRET;
+// --- 1. CONFIGURATION ET SÉCURITÉ DES SECRETS ---
 
+// On récupère les secrets depuis les variables d'environnement
+const SECRET = process.env.JWT_SECRET;
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY; // Plus de clé en dur ici !
+
+// Fail-Fast : On arrête tout si la configuration est dangereuse
 if (!SECRET || SECRET.length < 32) {
-  console.error('JWT_SECRET must be set and at least 32 characters');
+  console.error('❌ ERREUR FATALE : JWT_SECRET doit faire au moins 32 caractères.');
   process.exit(1);
 }
 
-// ✅ Sécurité
+// --- 2. MIDDLEWARES DE SÉCURITÉ ---
+
+// Ajoute des headers HTTP sécurisés (HSTS, CSP, etc.)
 app.use(helmet());
+
+// Limite la taille du corps des requêtes pour éviter les DoS (Déni de service)
 app.use(express.json({ limit: '10kb' }));
 
-// ✅ Rate limiting
+// Anti Brute-Force : Limite le nombre de tentatives de connexion
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: 'Too many login attempts'
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,                   // 5 tentatives max par IP
+  message: { error: 'Trop de tentatives de connexion. Réessayez plus tard.' }
 });
 
-// ✅ Validation des entrées
+// --- 3. ROUTES ---
+
+// Endpoint de Login sécurisé
 app.post('/api/login',
   loginLimiter,
   [
-    body('username').isString().trim().notEmpty(),
+    // Validation et assainissement des entrées (Sanitization)
+    body('username').isString().trim().notEmpty().escape(),
     body('password').isString().notEmpty().isLength({ min: 8 })
   ],
   (req, res) => {
@@ -73,30 +52,38 @@ app.post('/api/login',
     
     const { username, password } = req.body;
     
-    // Ici : vérification réelle avec bcrypt + DB
+    // Vérification des identifiants (utilisant les variables d'env pour le TP)
     if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
       const token = jwt.sign(
-        { username },
+        { username, role: 'admin' },
         SECRET,
-        { expiresIn: '1h' }
+        { expiresIn: '1h', algorithm: 'HS256' }
       );
-      res.json({ token });
-    } else {
-      res.status(401).json({ error: 'Invalid credentials' });
+      return res.json({ token });
     }
+
+    res.status(401).json({ error: 'Identifiants invalides' });
   }
 );
 
-// ✅ Endpoint de santé (sans infos sensibles)
+// Endpoint de santé (Healthcheck) pour Docker
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK' });
+  res.status(200).json({ status: 'UP', timestamp: new Date().toISOString() });
 });
 
-// ✅ Pas d'endpoint de debug en production
+// Mode Debug : Uniquement hors production
 if (process.env.NODE_ENV !== 'production') {
   app.get('/debug', (req, res) => {
-    res.json({ message: 'Debug mode' });
+    res.json({ 
+        message: 'Mode Debug activé',
+        env: process.env.NODE_ENV 
+    });
   });
 }
 
-app.listen(3000, () => console.log('✅ Secure server running'));
+// --- 4. LANCEMENT ---
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Serveur sécurisé lancé sur le port ${PORT}`);
+});
