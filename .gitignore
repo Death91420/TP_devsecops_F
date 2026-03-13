@@ -1,1 +1,23 @@
+# 1. Dépendances (Indispensable pour ne pas saturer le dépôt et les scans)
+node_modules/
+dist/
+build/
+
+# 2. Sécurité (CRITIQUE : Ne jamais commit ces fichiers)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# 3. Artefacts Docker et Logs (Évite les erreurs de build)
+*.tar
+docker-image.tar
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 4. OS et IDE
+.DS_Store
+.vscode/
 .env.example
