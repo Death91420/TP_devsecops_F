@@ -21,7 +21,7 @@ COPY --chown=node:node src/package*.json ./
 
 # ✅ npm ci est plus rapide et plus sûr en CI/CD que npm install
 # ✅ Suppression du cache npm pour réduire la taille finale de l'image
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --omit=dev && npm cache clean --force
 
 # ✅ Copie du reste du code avec les bons droits
 COPY --chown=node:node src/ ./
